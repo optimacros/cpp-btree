@@ -20,13 +20,10 @@ option(build_tests "Build B-tree tests" OFF)
 add_definitions(-std=c++11)
 set(CMAKE_CXX_FLAGS "-g -O2")
 
-# CMake doesn't have a way to pure template library,
-add_library(cppbtree btree.h btree_map.h btree_set.h
-            safe_btree.h safe_btree_map.h safe_btree_set.h)
+add_library(cppbtree INTERFACE)
 set_target_properties(cppbtree
-    PROPERTIES
-    LINKER_LANGUAGE CXX
-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
+       PROPERTIES
+       INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(build_tests)
   enable_testing()
