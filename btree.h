@@ -115,10 +115,6 @@
 #include <string>
 #include <utility>
 
-#ifndef NDEBUG
-#define NDEBUG 1
-#endif
-
 namespace btree {
 
 // Inside a btree method, if we just call swap(), it will choose the
@@ -153,12 +149,7 @@ struct big_ {
 };
 
 // A compile-time assertion.
-template <bool>
-struct CompileAssert {
-};
-
-#define COMPILE_ASSERT(expr, msg) \
-  typedef CompileAssert<(bool(expr))> msg[bool(expr) ? 1 : -1]
+#define COMPILE_ASSERT(expr, msg) static_assert(expr, #msg)
 
 // A helper type used to indicate that a key-compare-to functor has been
 // provided. A user can specify a key-compare-to functor by doing:
@@ -282,7 +273,7 @@ struct btree_common_params {
 
   typedef Alloc allocator_type;
   typedef Key key_type;
-  typedef ssize_t size_type;
+  typedef size_t size_type;
   typedef ptrdiff_t difference_type;
 
   enum {
@@ -523,11 +514,11 @@ class btree_node {
 
   // Getter for the position of this node in its parent.
   int position() const { return fields_.position; }
-  void set_position(int v) { fields_.position = v; }
+  void set_position(int v) { fields_.position = static_cast<typename Params::node_count_type>(v); }
 
   // Getter/setter for the number of values stored in this node.
   int count() const { return fields_.count; }
-  void set_count(int v) { fields_.count = v; }
+  void set_count(int v) { fields_.count = static_cast<typename Params::node_count_type>(v); }
   int max_count() const { return fields_.max_count; }
 
   // Getter for the parent of this node.
@@ -574,7 +565,7 @@ class btree_node {
   void set_child(int i, btree_node *c) {
     *mutable_child(i) = c;
     c->fields_.parent = this;
-    c->fields_.position = i;
+    c->fields_.position = static_cast<typename Params::node_count_type>(i);
   }
 
   // Returns the position of the first value whose key is not less than k.
@@ -687,20 +678,20 @@ class btree_node {
     btree_node *n = reinterpret_cast<btree_node*>(f);
     f->leaf = 1;
     f->position = 0;
-    f->max_count = max_count;
+    f->max_count = static_cast<typename base_fields::field_type>(max_count);
     f->count = 0;
     f->parent = parent;
-    if (!NDEBUG) {
+#ifdef BTREE_DEBUG
       memset(&f->values, 0, max_count * sizeof(value_type));
-    }
+#endif
     return n;
   }
   static btree_node* init_internal(internal_fields *f, btree_node *parent) {
     btree_node *n = init_leaf(f, parent, kNodeValues);
     f->leaf = 0;
-    if (!NDEBUG) {
+#ifdef BTREE_DEBUG
       memset(f->children, 0, sizeof(f->children));
-    }
+#endif
     return n;
   }
   static btree_node* init_root(root_fields *f, btree_node *parent) {
@@ -860,8 +851,8 @@ class btree : public Params::key_compare {
   typedef typename node_type::root_fields root_fields;
   typedef typename Params::is_key_compare_to is_key_compare_to;
 
-  friend class btree_internal_locate_plain_compare;
-  friend class btree_internal_locate_compare_to;
+  friend struct btree_internal_locate_plain_compare;
+  friend struct btree_internal_locate_compare_to;
   typedef typename if_<
     is_key_compare_to::value,
     btree_internal_locate_compare_to,
@@ -891,7 +882,7 @@ class btree : public Params::key_compare {
   };
 
   struct node_stats {
-    node_stats(ssize_t l, ssize_t i)
+    node_stats(size_t l, size_t i)
         : leaf_nodes(l),
           internal_nodes(i) {
     }
@@ -902,8 +893,8 @@ class btree : public Params::key_compare {
       return *this;
     }
 
-    ssize_t leaf_nodes;
-    ssize_t internal_nodes;
+    size_t leaf_nodes;
+    size_t internal_nodes;
   };
 
  public:
@@ -948,10 +939,12 @@ class btree : public Params::key_compare {
     return const_iterator(leftmost(), 0);
   }
   iterator end() {
-    return iterator(rightmost(), rightmost() ? rightmost()->count() : 0);
+    node_type* const right = rightmost();
+    return iterator(right, right ? right->count() : 0);
   }
   const_iterator end() const {
-    return const_iterator(rightmost(), rightmost() ? rightmost()->count() : 0);
+    const node_type* const right = rightmost();
+    return const_iterator(right, right ? right->count() : 0);
   }
   reverse_iterator rbegin() {
     return reverse_iterator(end());
@@ -1765,7 +1758,8 @@ inline typename btree<P>::iterator
 btree<P>::insert_unique(iterator position, const value_type &v) {
   if (!empty()) {
     const key_type &key = params_type::key(v);
-    if (position == end() || compare_keys(key, position.key())) {
+    const iterator end = this->end();
+    if (position == end || compare_keys(key, position.key())) {
       iterator prev = position;
       if (position == begin() || compare_keys((--prev).key(), key)) {
         // prev.key() < key < position.key()
@@ -1774,7 +1768,7 @@ btree<P>::insert_unique(iterator position, const value_type &v) {
     } else if (compare_keys(position.key(), key)) {
       iterator next = position;
       ++next;
-      if (next == end() || compare_keys(key, next.key())) {
+      if (next == end || compare_keys(key, next.key())) {
         // position.key() < key < next.key()
         return internal_insert(next, v);
       }
@@ -1812,7 +1806,8 @@ typename btree<P>::iterator
 btree<P>::insert_multi(iterator position, const value_type &v) {
   if (!empty()) {
     const key_type &key = params_type::key(v);
-    if (position == end() || !compare_keys(position.key(), key)) {
+    const iterator end = this->end();
+    if (position == end || !compare_keys(position.key(), key)) {
       iterator prev = position;
       if (position == begin() || !compare_keys(key, (--prev).key())) {
         // prev.key() <= key <= position.key()
@@ -1821,7 +1816,7 @@ btree<P>::insert_multi(iterator position, const value_type &v) {
     } else {
       iterator next = position;
       ++next;
-      if (next == end() || !compare_keys(next.key(), key)) {
+      if (next == end || !compare_keys(next.key(), key)) {
         // position.key() < key <= next.key()
         return internal_insert(next, v);
       }
@@ -1846,7 +1841,7 @@ void btree<P>::assign(const self_type &x) {
 
   // Assignment can avoid key comparisons because we know the order of the
   // values is the same order we'll store them in.
-  for (const_iterator iter = x.begin(); iter != x.end(); ++iter) {
+  for (const_iterator iter = x.begin(), xend = x.end(); iter != xend; ++iter) {
     if (empty()) {
       insert_multi(*iter);
     } else {

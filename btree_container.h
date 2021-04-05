@@ -66,6 +66,12 @@ class btree_container {
   reverse_iterator rend() { return tree_.rend(); }
   const_reverse_iterator rend() const { return tree_.rend(); }
 
+  // Const iterator routines.
+  const_iterator cbegin() const { return begin(); }
+  const_iterator cend() const { return end(); }
+  const_reverse_iterator crbegin() const { return rbegin(); }
+  const_reverse_iterator crend() const { return rend(); }
+
   // Lookup routines.
   iterator lower_bound(const key_type &key) {
     return tree_.lower_bound(key);
@@ -131,6 +137,8 @@ class btree_container {
     return !operator==(other);
   }
 
+  // Functor retrieval
+  key_compare key_comp() const { return tree_.key_comp(); }
 
  protected:
   Tree tree_;
