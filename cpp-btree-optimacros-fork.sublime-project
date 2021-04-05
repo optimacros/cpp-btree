@@ -1,0 +1,45 @@
+{
+	"folders":
+	[
+		{
+			"file_exclude_patterns":
+			[
+				"*.cache",
+				"*.pyc",
+				"*.pyo",
+				"*.pyd",
+				"*.zip",
+				"*.rar",
+				"*.7z",
+				"*.exe",
+				"*.sublime-project",
+				"*.sublime-workspace",
+				".*"
+			],
+			"folder_exclude_patterns":
+			[
+				".*",
+				"build",
+			],
+			"path": "."
+		}
+	],
+	"settings":
+	{
+		"ClangFormat":
+		{
+			"format_on_save": false
+		},
+		"afn_proj_root": "$project_path/cxp3/src",
+		"afn_use_project_root": true,
+		"default_line_ending": "unix",
+		"detect_indentation": false,
+		"rulers":
+		[
+			120
+		],
+		"show_line_endings": true,
+		"tab_size": 4,
+		"translate_tabs_to_spaces": true
+	}
+}
