@@ -764,6 +764,8 @@ struct btree_iterator {
         position(x.position) {
   }
 
+  btree_iterator& operator=(const btree_iterator&) = default;
+
   // Increment/decrement the iterator.
   void increment() {
     if (node->leaf() && ++position < node->count()) {
